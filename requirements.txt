@@ -1,0 +1,8 @@
+pydicom
+nibabel
+numpy
+torch
+torchvision
+matplotlib
+opencv-python
+streamlit
