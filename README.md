@@ -15,27 +15,25 @@ Designed to address the limitations of manual interpretation—such as noise, at
 - **Polar Map Visualization** for region-wise perfusion analysis  
 - **Region-Based Evaluation** (anterior, mid, inferior)  
 
-
 ## Output
+
 Try the live application:  
 https://perfusiondefectdetection.streamlit.app/
 
-## 📸 Output
-
 <p align="center">
-  <img src="outputs/predictions/pred_9.png" width="30%">
   <img src="outputs/overlays/overlay_9.png" width="30%">
+  <img src="outputs/errors/pred_9.png" width="30%">
   <img src="outputs/gradcam/gradcam_9.png" width="30%">
 </p>
 
 <p align="center">
-  <img src="outputs/errors/pred_9.png" width="30%">
   <img src="outputs/confidence/pred_9.png" width="30%">
   <img src="outputs/polar/pred_9.png" width="30%">
+  <img src="outputs/defect_map/defect_9.png" width="30%">
 </p>
 
 <p align="center">
-  <img src="outputs/defect_map/defect_9.png" width="30%">
+  <img src="outputs/predictions/pred_9.png" width="40%">
 </p>
 
 ## Dataset
