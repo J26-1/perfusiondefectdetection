@@ -1,4 +1,4 @@
-# 🫀 PerfusionAI  
+# PerfusionAI  
 **Interpretable Deep Learning Framework for Myocardial Perfusion SPECT Defect Detection**
 
 🔗 **Live Demo:** https://perfusiondefectdetection.streamlit.app/  
@@ -6,26 +6,23 @@
 
 ---
 
-## 📌 Overview
+## Overview
 PerfusionAI is an interpretable deep learning–based clinical decision support system for analyzing myocardial perfusion SPECT images. It performs automatic myocardial segmentation and assists in detecting perfusion defects while providing transparent and uncertainty-aware predictions.
 
 Designed to address the limitations of manual interpretation—such as noise, attenuation artifacts, and inter-observer variability—PerfusionAI integrates explainability and region-based analysis to support reliable clinical decision-making.
 
----
+## Features
+- **U-Net Segmentation** for precise myocardial localization  
+- **Perfusion Defect Detection** within segmented myocardium  
+- **Grad-CAM Explainability** to visualize model attention  
+- **Uncertainty Estimation** using Monte Carlo Dropout  
+- **Polar Map Visualization** for region-wise perfusion analysis  
+- **Region-Based Evaluation** (anterior, mid, inferior)  
 
-## 🚀 Features
-- 🧠 **U-Net Segmentation** for precise myocardial localization  
-- 🔍 **Perfusion Defect Detection** within segmented myocardium  
-- 🔥 **Grad-CAM Explainability** to visualize model attention  
-- 📉 **Uncertainty Estimation** using Monte Carlo Dropout  
-- 🗺️ **Polar Map Visualization** for region-wise perfusion analysis  
-- 📊 **Region-Based Evaluation** (anterior, mid, inferior)  
 
----
-
-## 📸 Demo
+## Output
 Try the live application:  
-👉 https://perfusiondefectdetection.streamlit.app/
+https://perfusiondefectdetection.streamlit.app/
 
 Example outputs include:
 - Segmentation maps  
@@ -63,10 +60,8 @@ pip install -r requirements.txt
 python main.py    # Run Model
 streamlit run app.py    # Run Streamlit App
 ```
----
 
 ## Tech Stack
-
 - **Programming Language:** Python  
 - **Deep Learning Framework:** PyTorch  
 - **Medical Image Processing:** NumPy, OpenCV, PIL  
@@ -75,5 +70,7 @@ streamlit run app.py    # Run Streamlit App
 - **Uncertainty Estimation:** Monte Carlo Dropout  
 - **Web Framework:** Streamlit  
 - **Data Format:** DICOM, NIfTI  
-
----
+- **Model:** U-net architecture
+- **Loss:** BCE + Dice  
+- **Optimizer:** Adam
+- **Training:** Stratified split, LR scheduling, Early stopping
