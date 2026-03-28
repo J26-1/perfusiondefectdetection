@@ -58,3 +58,9 @@ https://doi.org/10.13026/ce2z-dw74
 git clone https://github.com/J26-1/perfusiondefectdetection.git
 cd perfusiondefectdetection
 pip install -r requirements.txt
+
+## How To Run
+```bash
+python main.py    # Run Model
+streamlit run app.py    # Run Streamlit App
+
