@@ -1,10 +1,6 @@
-# PerfusionAI  
-**Interpretable Deep Learning Framework for Myocardial Perfusion SPECT Defect Detection**
-
+# Perfusion AI: Interpretable Deep Learning Framework for Myocardial Perfusion SPECT Defect Detection
 🔗 **Live Demo:** https://perfusiondefectdetection.streamlit.app/  
 📂 **Repository:** https://github.com/J26-1/perfusiondefectdetection  
-
----
 
 ## Overview
 PerfusionAI is an interpretable deep learning–based clinical decision support system for analyzing myocardial perfusion SPECT images. It performs automatic myocardial segmentation and assists in detecting perfusion defects while providing transparent and uncertainty-aware predictions.
