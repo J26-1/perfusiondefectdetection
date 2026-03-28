@@ -16,8 +16,6 @@ Designed to address the limitations of manual interpretation—such as noise, at
 - **Region-Based Evaluation** (anterior, mid, inferior)  
 
 ## Output
-Sample outputs
-
 <p align="center">
   <img src="outputs/overlays/overlay_9.png" width="30%">
   <img src="outputs/errors/pred_9.png" width="30%">
