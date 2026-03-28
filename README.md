@@ -38,7 +38,7 @@ https://perfusiondefectdetection.streamlit.app/
 ![GradCAM](images/gradcam.png)
 
 ### Confidence / Uncertainty Map
-![Confidence](images/confidence.png)
+![Confidence](outputs/confidence/pred_9.png)
 
 ### Polar Map
 ![Polar](images/polar.png)
