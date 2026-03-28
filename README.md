@@ -22,29 +22,21 @@ https://perfusiondefectdetection.streamlit.app/
 
 ## 📸 Output
 
-Try the live application:  
-https://perfusiondefectdetection.streamlit.app/
+<p align="center">
+  <img src="outputs/predictions/pred_9.png" width="30%">
+  <img src="outputs/overlays/overlay_9.png" width="30%">
+  <img src="outputs/gradcam/gradcam_9.png" width="30%">
+</p>
 
-### 🧠 Segmentation
-![Segmentation](outputs/predictions/pred_9.png)
+<p align="center">
+  <img src="outputs/errors/pred_9.png" width="30%">
+  <img src="outputs/confidence/pred_9.png" width="30%">
+  <img src="outputs/polar/pred_9.png" width="30%">
+</p>
 
-### 🖼️ Overlay (Prediction vs Ground Truth)
-![Overlay](outputs/overlays/overlay_9.png)
-
-### ❌ Error Map (False Positives / False Negatives)
-![Error](outputs/errors/pred_9.png)
-
-### 🔥 Grad-CAM (Model Attention)
-![GradCAM](outputs/gradcam/gradcam_9.png)
-
-### 📉 Confidence Map
-![Confidence](outputs/confidence/pred_9.png)
-
-### 🗺️ Polar Map (Region-wise Perfusion)
-![Polar](outputs/polar/pred_9.png)
-
-### ❤️ Perfusion Defect Detection
-![Defect](outputs/defect_map/defect_9.png)
+<p align="center">
+  <img src="outputs/defect_map/defect_9.png" width="30%">
+</p>
 
 ## Dataset
 This project uses the **Myocardial Perfusion SPECT dataset** from PhysioNet.
