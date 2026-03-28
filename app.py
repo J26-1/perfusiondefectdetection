@@ -1,298 +1,361 @@
-import streamlit as st
-import numpy as np
+#app.py
 import os
+import numpy as np
 from PIL import Image
-import plotly.graph_objects as go
+import streamlit as st
 
-# -----------------------------
-# PAGE CONFIG
-# -----------------------------
-st.set_page_config(layout="wide", page_title="PerfusionAI Clinical System")
-st.title("🫀 PerfusionAI Clinical Decision Support System")
+st.set_page_config(
+    page_title="PerfusionAI Clinical Decision Support System",
+    page_icon="🫀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# -----------------------------
-# PATHS
-# -----------------------------
-base = "outputs"
-paths = {
-    "prediction": f"{base}/predictions",
-    "overlay": f"{base}/overlays",
-    "polar": f"{base}/polar",
-    "error": f"{base}/errors",
-    "confidence": f"{base}/confidence",
-    "gradcam": f"{base}/gradcam",
-    "region_dice": f"{base}/region_dice.npy",
-    "dice_curve": f"{base}/dice_curve.png",
-    "loss_curve": f"{base}/loss_curve.png",
-    "best_sample": f"{base}/best_sample.png",
-    "worst_sample": f"{base}/worst_sample.png"
+BASE = "outputs"
+
+PATHS = {
+    "predictions": os.path.join(BASE, "predictions"),
+    "overlays": os.path.join(BASE, "overlays"),
+    "errors": os.path.join(BASE, "errors"),
+    "confidence": os.path.join(BASE, "confidence"),
+    "uncertainty": os.path.join(BASE, "uncertainty"),
+    "polar": os.path.join(BASE, "polar"),
+    "gradcam": os.path.join(BASE, "gradcam"),
+    "defect_map": os.path.join(BASE, "defect_map"),
+    "region_dice": os.path.join(BASE, "region_dice.npy"),
+    "selected_meta": os.path.join(BASE, "selected_meta.npy"),
+    "dice_curve": os.path.join(BASE, "dice_curve.png"),
+    "loss_curve": os.path.join(BASE, "loss_curve.png"),
+    "best_sample": os.path.join(BASE, "best_sample.png"),
+    "worst_sample": os.path.join(BASE, "worst_sample.png"),
 }
 
+st.markdown(
+    """
+    <style>
+    .main-title {
+        font-size: 2.0rem;
+        font-weight: 700;
+        margin-bottom: 0.15rem;
+    }
+    .subtle {
+        color: #666;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+    .card {
+        padding: 1rem 1rem 0.6rem 1rem;
+        border: 1px solid rgba(128,128,128,0.18);
+        border-radius: 14px;
+        background-color: rgba(250,250,250,0.03);
+        margin-bottom: 1rem;
+    }
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # -----------------------------
-# UTILS
+# Load helpers
 # -----------------------------
-def load_img(path):
-    try:
-        if os.path.exists(path):
-            return Image.open(path)
-    except:
-        pass
+def safe_exists(path: str) -> bool:
+    return os.path.exists(path)
+
+def load_image(path: str):
+    if safe_exists(path):
+        return Image.open(path)
     return None
 
-def safe_image(img):
+def load_npy(path: str):
+    if safe_exists(path):
+        return np.load(path, allow_pickle=True)
+    return None
+
+def load_dict_npy(path: str):
+    arr = load_npy(path)
+    if arr is None:
+        return {}
+    return arr.item()
+
+def render_img(path: str, caption: str | None = None):
+    img = load_image(path)
     if img is None:
-        st.warning("Image not available")
+        st.warning(f"Missing: {os.path.basename(path)}")
     else:
-        st.image(img, use_container_width=True)
+        st.image(img, caption=caption, use_container_width=True)
 
-def load_uncertainty(idx):
-    path = os.path.join(paths["confidence"], f"conf_{idx}.npy")
-    return np.load(path) if os.path.exists(path) else None
-
-def load_region_dice():
-    return np.load(paths["region_dice"], allow_pickle=True).item() if os.path.exists(paths["region_dice"]) else {}
-
-def compute_error_ratio(error_img):
-    if error_img is None:
-        return 1.0
-    arr = np.array(error_img)
-    error_ratio = np.mean(arr / 255.0)
-    return error_ratio  # % of error pixels
-
-def compute_gradcam_focus(gradcam_img):
-    if gradcam_img is None:
-        return 0.0
-    arr = np.array(gradcam_img).astype(float)
-    return np.std(arr)  # higher std → more focused
+def available_ui_indices(max_n: int = 10):
+    idxs = []
+    for i in range(max_n):
+        pred_path = os.path.join(PATHS["predictions"], f"pred_{i}.png")
+        if safe_exists(pred_path):
+            idxs.append(i)
+    return idxs
 
 # -----------------------------
-# LOAD DATA
+# Reliability score
 # -----------------------------
-files = os.listdir(paths["prediction"])
-all_indices = sorted([int(f.split("_")[1].split(".")[0]) for f in files])
-indices = all_indices[:10]
+def compute_reliability(slice_idx: int):
+    """
+    Reliability score uses only saved quantitative artifacts:
+    - global Dice from selected_meta
+    - region Dice from region_dice.npy
+    - confidence map (inside ROI only)
+    - uncertainty map (inside ROI only)
 
-region_dice_dict = load_region_dice()
+    Score range: 0 to 1
+    """
+    selected_meta = load_dict_npy(PATHS["selected_meta"])
+    region_dice_dict = load_dict_npy(PATHS["region_dice"])
 
-# -----------------------------
-# RELIABILITY MODEL (CORE)
-# -----------------------------
-def compute_reliability(uncertainty_map, error_img, dice_regions, gradcam_img):
+    meta = selected_meta.get(slice_idx, {})
+    dice_global = float(meta.get("dice", 0.0))
 
-    if uncertainty_map is None:
-        return "⚠️ Unknown", {}, 0
+    region_scores = region_dice_dict.get(slice_idx, {"top": 0.0, "middle": 0.0, "bottom": 0.0})
+    region_vals = np.array(list(region_scores.values()), dtype=np.float32)
+    region_mean = float(region_vals.mean()) if len(region_vals) > 0 else 0.0
+    region_std = float(region_vals.std()) if len(region_vals) > 0 else 0.0
 
-    mean_conf = float(np.mean(uncertainty_map))
-    std_conf = float(np.std(uncertainty_map))
-    
-    dice_mean = float(np.mean(list(dice_regions.values())))
+    conf_path = os.path.join(PATHS["confidence"], f"conf_{slice_idx}.npy")
+    unc_path = os.path.join(PATHS["uncertainty"], f"unc_{slice_idx}.npy")
 
-    error_ratio = compute_error_ratio(error_img)
-    gradcam_focus = compute_gradcam_focus(gradcam_img)
+    conf = load_npy(conf_path)
+    unc = load_npy(unc_path)
 
-    # NORMALIZE
-    error_score = 1 - error_ratio
-    variance_penalty = std_conf
+    mean_conf = 0.0
+    mean_unc = 1.0
+    if conf is not None:
+        conf = np.asarray(conf).astype(np.float32)
+        roi = conf > 0.05
+        if roi.sum() > 0:
+            mean_conf = float(conf[roi].mean())
+        else:
+            mean_conf = float(conf.mean())
 
-    # WEIGHTED SCORE
-    score = (
-        0.5 * mean_conf +
-        0.2 * error_score +
-        0.2 * dice_mean -
-        0.1 * variance_penalty
+    if unc is not None:
+        unc = np.asarray(unc).astype(np.float32)
+        roi = (conf > 0.05) if conf is not None else np.ones_like(unc, dtype=bool)
+        if roi.sum() > 0:
+            unc_roi = unc[roi]
+        else:
+            unc_roi = unc.flatten()
+
+        unc_max = float(np.max(unc_roi)) if unc_roi.size > 0 else 0.0
+        if unc_max > 0:
+            unc_norm = unc_roi / (unc_max + 1e-6)
+            mean_unc = float(unc_norm.mean())
+        else:
+            mean_unc = 0.0
+
+    # Region consistency rewards balanced performance across regions
+    if region_mean > 1e-6:
+        region_consistency = max(0.0, 1.0 - (region_std / (region_mean + 1e-6)))
+    else:
+        region_consistency = 0.0
+
+    # Weighted score
+    reliability = (
+        0.40 * dice_global +
+        0.25 * mean_conf +
+        0.20 * (1.0 - mean_unc) +
+        0.15 * region_consistency
+    )
+    reliability = float(np.clip(reliability, 0.0, 1.0))
+
+    # Hard safety rules
+    hard_fail = (
+        dice_global < 0.60 or
+        mean_conf < 0.45 or
+        mean_unc > 0.55
     )
 
-    # DECISION
-    if score > 0.65:
-        status = "🟢 Reliable"
-    elif score > 0.45:
-        status = "⚠️ Caution"
+    if hard_fail:
+        status = "Unreliable"
+    elif reliability >= 0.72:
+        status = "Reliable"
+    elif reliability >= 0.55:
+        status = "Review Required"
     else:
-        status = "🔴 Unreliable"
+        status = "Unreliable"
 
-    reasons = {
-        "Mean Confidence": round(mean_conf, 3),
-        "Confidence Std": round(std_conf, 3),
-        "Dice Score": round(dice_mean, 3),
-        "Error Ratio": round(error_ratio, 3),
-        "GradCAM Focus": round(gradcam_focus, 3),
-        "Final Score": round(score, 3)
+    return {
+        "reliability": reliability,
+        "status": status,
+        "dice_global": dice_global,
+        "region_mean": region_mean,
+        "region_std": region_std,
+        "mean_conf": mean_conf,
+        "mean_unc": mean_unc,
+        "region_scores": region_scores,
     }
 
-    return status, reasons, score
+# -----------------------------
+# Header
+# -----------------------------
+st.markdown('<div class="main-title">🫀 PerfusionAI Clinical Decision Support System</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="subtle">Interpretable myocardial perfusion SPECT analysis with segmentation, confidence, Grad-CAM, polar mapping, and reliability scoring.</div>',
+    unsafe_allow_html=True
+)
+
+ui_indices = available_ui_indices(10)
+if not ui_indices:
+    st.error("No UI outputs found in outputs/predictions. Run inference first.")
+    st.stop()
 
 # -----------------------------
-# DEFECT FROM POLAR MAP
+# Sidebar
 # -----------------------------
-def analyze_polar_map(polar_img):
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Dashboard", "Slice Viewer"], index=1)
 
-    if polar_img is None:
-        return "Unknown", "Unknown", {}
-
-    arr = np.array(polar_img).astype(float)
-
-    if len(arr.shape) == 3:
-        arr = np.mean(arr, axis=2)
-
-    h = arr.shape[0]
-
-    top = np.mean(arr[:h//3])
-    mid = np.mean(arr[h//3:2*h//3])
-    bottom = np.mean(arr[2*h//3:])
-
-    region_values = {
-        "Anterior": top,
-        "Mid": mid,
-        "Inferior": bottom
-    }
-
-    worst_region = min(region_values, key=region_values.get)
-
-    ratio = region_values[worst_region] / (max(region_values.values()) + 1e-8)
-
-    if ratio < 0.5:
-        defect = "Severe Defect"
-    elif ratio < 0.75:
-        defect = "Mild Defect"
-    else:
-        defect = "Normal"
-
-    return defect, worst_region, region_values
+st.sidebar.markdown("---")
+st.sidebar.markdown("**Available Slices**")
+st.sidebar.caption("Selected clinically meaningful slices only.")
+st.sidebar.write(f"0 to {len(ui_indices)-1}")
 
 # -----------------------------
-# PLOT
+# Dashboard
 # -----------------------------
-def plot_overlay(img_path, prob=None):
-    img = load_img(img_path)
-    if img is None:
-        st.warning("Overlay missing")
-        return
-
-    arr = np.array(img)
-    fig = go.Figure(go.Image(z=arr))
-
-    if prob is not None:
-        prob = prob / (np.max(prob) + 1e-8)
-        fig.add_trace(go.Heatmap(z=prob, opacity=0.4, showscale=False))
-
-    fig.update_layout(margin=dict(l=0,r=0,t=0,b=0))
-    st.plotly_chart(fig, use_container_width=True)
-
-# -----------------------------
-# NAVIGATION
-# -----------------------------
-page = st.sidebar.radio("Navigation", ["Dashboard", "Slice Viewer"])
-
-# =========================================================
-# DASHBOARD
-# =========================================================
 if page == "Dashboard":
+    c1, c2 = st.columns(2)
 
-    st.subheader("System Overview")
+    with c1:
+        st.markdown('<div class="card"><div class="section-title">Best Representative Case</div>', unsafe_allow_html=True)
+        render_img(PATHS["best_sample"])
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    col1, col2 = st.columns(2)
+    with c2:
+        st.markdown('<div class="card"><div class="section-title">Worst Representative Case</div>', unsafe_allow_html=True)
+        render_img(PATHS["worst_sample"])
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with col1:
-        st.markdown("### Best Case")
-        safe_image(load_img(paths["best_sample"]))
+    c3, c4 = st.columns(2)
+    with c3:
+        st.markdown('<div class="card"><div class="section-title">Training Dice Curve</div>', unsafe_allow_html=True)
+        render_img(PATHS["dice_curve"])
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    with col2:
-        st.markdown("### Worst Case")
-        safe_image(load_img(paths["worst_sample"]))
+    with c4:
+        st.markdown('<div class="card"><div class="section-title">Training Loss Curve</div>', unsafe_allow_html=True)
+        render_img(PATHS["loss_curve"])
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# =========================================================
-# SLICE VIEWER
-# =========================================================
+# -----------------------------
+# Slice Viewer
+# -----------------------------
 else:
+    slice_idx = st.sidebar.slider("Selected Slice Index", min_value=0, max_value=min(9, len(ui_indices)-1), value=0, step=1)
 
-    selected_idx = st.sidebar.slider("Slice", 0, len(indices)-1, 0)
-    slice_idx = indices[selected_idx]
+    metrics = compute_reliability(slice_idx)
+    reliability = metrics["reliability"]
+    status = metrics["status"]
 
-    uncertainty_map = load_uncertainty(slice_idx)
-    error_img = load_img(f"{paths['error']}/pred_{slice_idx}.png")
-    gradcam_img = load_img(f"{paths['gradcam']}/gradcam_{slice_idx}.png")
+    if status == "Reliable":
+        status_color = "green"
+        status_icon = "✅"
+    elif status == "Review Required":
+        status_color = "orange"
+        status_icon = "⚠️"
+    else:
+        status_color = "red"
+        status_icon = "❌"
 
-    dice_regions = region_dice_dict.get(slice_idx, {"top":0,"middle":0,"bottom":0})
-
-    reliability, reasons, score = compute_reliability(
-        uncertainty_map, error_img, dice_regions, gradcam_img
+    # Top summary
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Slice", f"{slice_idx}")
+    m2.metric("Global Dice", f"{metrics['dice_global']:.3f}")
+    m3.metric("Reliability Score", f"{reliability:.3f}")
+    m4.markdown(
+        f"""
+        <div class="card" style="text-align:center; padding:0.8rem;">
+            <div style="font-size:0.9rem; color:#666;">Decision Status</div>
+            <div style="font-size:1.2rem; font-weight:700; color:{status_color};">{status_icon} {status}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
 
-    polar_img = load_img(f"{paths['polar']}/pred_{slice_idx}.png")
-    defect, region, region_values = analyze_polar_map(polar_img)
+    left, right = st.columns([3, 1])
 
-    # ---------------- TOP PANEL ----------------
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric("Slice", selected_idx)
-    col2.metric("Reliability Score", f"{score:.3f}")
-    col3.metric("Decision", reliability)
-
-    st.markdown("---")
-
-    # ---------------- MAIN ----------------
-    col_main, col_right = st.columns([3,1])
-
-    with col_main:
-
-        tabs = st.tabs(["Overlay", "Prediction", "Error", "Confidence", "Grad-CAM"])
+    with left:
+        tabs = st.tabs([
+            "Prediction",
+            "Overlay",
+            "Error Map",
+            "Confidence Map",
+            "Grad-CAM",
+            "Polar Map",
+            "Defect Map",
+        ])
 
         with tabs[0]:
-            plot_overlay(f"{paths['overlay']}/overlay_{slice_idx}.png", uncertainty_map)
+            render_img(os.path.join(PATHS["predictions"], f"pred_{slice_idx}.png"))
 
         with tabs[1]:
-            safe_image(load_img(f"{paths['prediction']}/pred_{slice_idx}.png"))
+            render_img(os.path.join(PATHS["overlays"], f"overlay_{slice_idx}.png"))
 
         with tabs[2]:
-            safe_image(error_img)
+            render_img(os.path.join(PATHS["errors"], f"pred_{slice_idx}.png"))
 
         with tabs[3]:
-            safe_image(load_img(f"{paths['confidence']}/pred_{slice_idx}.png"))
+            render_img(os.path.join(PATHS["confidence"], f"pred_{slice_idx}.png"))
 
         with tabs[4]:
-            safe_image(gradcam_img)
+            render_img(os.path.join(PATHS["gradcam"], f"gradcam_{slice_idx}.png"))
 
-    # ---------------- RIGHT PANEL ----------------
-    with col_right:
+        with tabs[5]:
+            render_img(os.path.join(PATHS["polar"], f"pred_{slice_idx}.png"))
 
-        st.markdown("### Polar Map")
-        safe_image(polar_img)
+        with tabs[6]:
+            render_img(os.path.join(PATHS["defect_map"], f"defect_{slice_idx}.png"))
 
-        st.markdown("### Region Dice")
-        st.table(dice_regions)
+    with right:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### Reliability Breakdown")
+        st.write(f"**Mean Confidence:** {metrics['mean_conf']:.3f}")
+        st.write(f"**Mean Uncertainty:** {metrics['mean_unc']:.3f}")
+        st.write(f"**Mean Region Dice:** {metrics['region_mean']:.3f}")
+        st.write(f"**Region Dice Std:** {metrics['region_std']:.3f}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        # ✅ YOUR REQUIRED SECTION (ADDED BEFORE DECISION)
-        st.markdown("### Clinical Evidence")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### Region-wise Dice")
+        region_scores = metrics["region_scores"]
+        st.write(f"**Anterior / Top:** {region_scores.get('top', 0.0):.3f}")
+        st.write(f"**Mid:** {region_scores.get('middle', 0.0):.3f}")
+        st.write(f"**Inferior / Bottom:** {region_scores.get('bottom', 0.0):.3f}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.write("**Reliability Factors:**")
-        st.json(reasons)
-
-        st.write("**Perfusion by Region:**")
-        st.json({k: round(v,2) for k,v in region_values.items()})
-
-        st.markdown("---")
-
-        st.markdown("### Clinical Decision")
-
-        if reliability == "🔴 Unreliable":
-            st.error("Model output NOT reliable → Do not trust")
-        elif reliability == "⚠️ Caution":
-            st.warning("Review required with clinician")
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### Clinical Interpretation")
+        if status == "Reliable":
+            st.success(
+                "Prediction is quantitatively consistent. Confidence is adequate and uncertainty is controlled. Suitable for supportive clinical review."
+            )
+        elif status == "Review Required":
+            st.warning(
+                "Prediction is partially reliable, but caution is needed. Check overlay, error map, and Grad-CAM before clinical interpretation."
+            )
         else:
-            st.success("Model output supported by quantitative evidence")
+            st.error(
+                "Prediction is not sufficiently reliable. High uncertainty, weak confidence, or low Dice suggests this slice should not be trusted without manual review."
+            )
+        st.markdown("</div>", unsafe_allow_html=True)
 
-        st.markdown(f"""
-        **Detected Defect:** {defect}  
-        **Most Affected Region:** {region}
-        """)
-
-    # ---------------- BOTTOM ----------------
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        safe_image(load_img(paths["dice_curve"]))
-
-    with col2:
-        safe_image(load_img(paths["loss_curve"]))
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.markdown("### Scoring Logic")
+        st.caption(
+            "Reliability Score = 0.40 × Global Dice + 0.25 × Mean Confidence + "
+            "0.20 × (1 − Mean Uncertainty) + 0.15 × Region Consistency"
+        )
+        st.caption(
+            "Hard fail rules mark a slice as Unreliable if Dice < 0.60, "
+            "Mean Confidence < 0.45, or Mean Uncertainty > 0.55."
+        )
+        st.markdown("</div>", unsafe_allow_html=True)

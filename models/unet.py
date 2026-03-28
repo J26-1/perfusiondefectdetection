@@ -1,19 +1,22 @@
+#unet.py
 import torch
 import torch.nn as nn
 
 
 class DoubleConv(nn.Module):
-
-    def __init__(self, in_c, out_c):
+    def __init__(self, in_c, out_c, dropout=0.2):
         super().__init__()
 
         self.conv = nn.Sequential(
             nn.Conv2d(in_c, out_c, 3, padding=1),
             nn.BatchNorm2d(out_c),
             nn.ReLU(inplace=True),
+            nn.Dropout2d(dropout),
+
             nn.Conv2d(out_c, out_c, 3, padding=1),
             nn.BatchNorm2d(out_c),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
+            nn.Dropout2d(dropout)
         )
 
     def forward(self, x):
@@ -21,29 +24,24 @@ class DoubleConv(nn.Module):
 
 
 class UNet(nn.Module):
-
     def __init__(self):
         super().__init__()
 
         self.pool = nn.MaxPool2d(2)
 
-        # Encoder
-        self.down1 = DoubleConv(1, 64)
-        self.down2 = DoubleConv(64, 128)
-        self.down3 = DoubleConv(128, 256)
+        self.down1 = DoubleConv(1, 64, dropout=0.10)
+        self.down2 = DoubleConv(64, 128, dropout=0.20)
+        self.down3 = DoubleConv(128, 256, dropout=0.30)
 
-        # Decoder
         self.up1 = nn.ConvTranspose2d(256, 128, 2, stride=2)
-        self.conv1 = DoubleConv(256, 128)
+        self.conv1 = DoubleConv(256, 128, dropout=0.20)
 
         self.up2 = nn.ConvTranspose2d(128, 64, 2, stride=2)
-        self.conv2 = DoubleConv(128, 64)
+        self.conv2 = DoubleConv(128, 64, dropout=0.10)
 
-        # Output
         self.out = nn.Conv2d(64, 1, 1)
 
     def forward(self, x):
-
         c1 = self.down1(x)
         p1 = self.pool(c1)
 

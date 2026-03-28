@@ -1,0 +1,85 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.env.*
+.venv/
+
+# =========================
+# Jupyter / IPython
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# OS / System files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# PyTorch / Models
+# =========================
+*.pth
+*.pt
+checkpoints/
+models_weights/
+
+# =========================
+# Logs
+# =========================
+*.log
+training_log.csv
+
+# =========================
+# Outputs (VERY IMPORTANT)
+# =========================
+outputs/
+results/
+predictions/
+inference_outputs/
+
+# =========================
+# Dataset (DO NOT UPLOAD)
+# =========================
+data/raw/
+data/processed/
+*.dcm
+*.nii
+*.nii.gz
+
+# =========================
+# Numpy / temp data
+# =========================
+*.npy
+*.npz
+
+# =========================
+# Images generated (optional)
+# =========================
+*.png
+*.jpg
+*.jpeg
+
+# =========================
+# Temporary / cache
+# =========================
+*.tmp
+*.cache
+
+# =========================
+# Misc
+# =========================
+*.zip
+*.tar
+*.tar.gz
