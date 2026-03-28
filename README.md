@@ -39,7 +39,7 @@ Example outputs include:
 
 ---
 
-## 📊 Dataset
+## Dataset
 This project uses the **Myocardial Perfusion SPECT dataset** from PhysioNet.
 
 - **Format:** DICOM images + NIfTI masks  
@@ -51,9 +51,7 @@ Calixto, W., Nogueira, S., Luz, F., & Ortiz de Camargo, T. F. (2025).
 *Myocardial perfusion scintigraphy image database (version 1.0.0).* PhysioNet.  
 https://doi.org/10.13026/ce2z-dw74  
 
----
-
-## ⚙️ Installation
+## Installation
 ```bash
 git clone https://github.com/J26-1/perfusiondefectdetection.git
 cd perfusiondefectdetection
@@ -65,3 +63,17 @@ pip install -r requirements.txt
 python main.py    # Run Model
 streamlit run app.py    # Run Streamlit App
 ```
+---
+
+## Tech Stack
+
+- **Programming Language:** Python  
+- **Deep Learning Framework:** PyTorch  
+- **Medical Image Processing:** NumPy, OpenCV, PIL  
+- **Visualization:** Matplotlib, Plotly  
+- **Explainability:** Grad-CAM  
+- **Uncertainty Estimation:** Monte Carlo Dropout  
+- **Web Framework:** Streamlit  
+- **Data Format:** DICOM, NIfTI  
+
+---
