@@ -20,17 +20,28 @@ Designed to address the limitations of manual interpretation—such as noise, at
 Try the live application:  
 https://perfusiondefectdetection.streamlit.app/
 
-Example outputs include:
-- Segmentation maps  
-- Overlay (prediction vs ground truth)  
-- Error maps (false positives / false negatives)  
-- Grad-CAM visualizations  
-- Confidence and uncertainty maps  
-- Polar maps for regional perfusion analysis  
+## 📸 Output
 
-*(Add screenshots here for best impact)*
+Try the live application:  
+https://perfusiondefectdetection.streamlit.app/
 
----
+### Segmentation Output
+![Segmentation](images/segmentation.png)
+
+### Overlay (Prediction vs Ground Truth)
+![Overlay](images/overlay.png)
+
+### Error Map
+![Error](images/error.png)
+
+### Grad-CAM Visualization
+![GradCAM](images/gradcam.png)
+
+### Confidence / Uncertainty Map
+![Confidence](images/confidence.png)
+
+### Polar Map
+![Polar](images/polar.png)
 
 ## Dataset
 This project uses the **Myocardial Perfusion SPECT dataset** from PhysioNet.
